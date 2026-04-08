@@ -280,7 +280,8 @@ const getTransferDetail = async (req, res, next) => {
         });
 
         if (!transferOrder) {
-            logger.warn(`[Inventory] สุ่มหาใบโอนย้ายที่ไม่ทีอยู่จริง (ID: ${id})`, { ip: req.ip, userId: req.user?.id });
+            // ตัวอย่างการแก้จุดที่เกี่ยวกับ id หรือ error message
+            logger.error("[Inventory] GR Creation Error", { error: error.message.replace(/[\r\n]/g, ''), ip: req.ip, userId: req.user?.id });
             return res.status(404).json({ success: false, message: "ไม่พบข้อมูลเอกสารใบโอนย้ายนี้" });
         }
         res.json(transferOrder);
@@ -411,7 +412,7 @@ const getAdjustmentDetail = async (req, res, next) => {
         });
 
         if (!adjustment) {
-            logger.warn(`[Inventory] สุ่มหาเอกสารปรับปรุงที่ไม่ทีอยู่จริง (ID: ${id})`, { ip: req.ip, userId: req.user?.id });
+            logger.error("[Inventory] GR Creation Error", { error: error.message.replace(/[\r\n]/g, ''), ip: req.ip, userId: req.user?.id });
             return res.status(404).json({ success: false, message: "ไม่พบข้อมูลเอกสารใบปรับปรุงยอดนี้" });
         }
         res.status(200).json(adjustment);
@@ -756,7 +757,7 @@ const getPODetail = async (req, res, next) => {
         });
 
         if (!po) {
-            logger.warn(`[Inventory] สุ่มหาข้อมูลใบสั่งซื้อที่ไม่ทีอยู่จริง (ID: ${id})`, { ip: req.ip, userId: req.user?.id });
+            logger.error("[Inventory] GR Creation Error", { error: error.message.replace(/[\r\n]/g, ''), ip: req.ip, userId: req.user?.id });
             return res.status(404).json({ success: false, message: "ไม่พบข้อมูลใบสั่งซื้อ" });
         }
         res.status(200).json(po);
@@ -1126,7 +1127,7 @@ const viewGRDocument = (req, res) => {
         // 💡 [อัปเกรด Security] ดักจับการจู่โจมแบบ Path Traversal
         if (filename.includes('..') || filename.includes('/')) {
             logActivity(req, `พยายามเจาะระบบอ่านไฟล์นอกระบบ (Path Traversal): ${filename}`, "Security", null, true);
-            logger.warn(`[Security] Path Traversal Attempt: ${filename}`, { ip: req.ip, userId: req.user?.id });
+            logger.error("[Inventory] GR Creation Error", { error: error.message.replace(/[\r\n]/g, ''), ip: req.ip, userId: req.user?.id });
             return res.status(403).send("Forbidden");
         }
 

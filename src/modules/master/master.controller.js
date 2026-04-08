@@ -184,7 +184,8 @@ async function getProductBarcodePng(req, res) {
     const p = await prisma.product.findUnique({ where: { id: req.params.id } });
     if (!p) {
       // 💡 [อัปเกรด Security] ดักคนสุ่ม ID หวังดูข้อมูล
-      logger.warn(`[Master] พยายามดึงบาร์โค้ดสินค้าที่ไม่มีอยู่จริง (ID: ${req.params.id})`, { ip: req.ip, userId: req.user?.id });
+      const safeId = req.params.id.replace(/[\r\n]/g, '');
+      logger.warn(`[Master] พยายามดึงข้อมูลที่ไม่มีอยู่จริง (ID: ${safeId})`, { ip: req.ip, userId: req.user?.id });
       return res.status(404).json({ message: "ไม่พบข้อมูลสินค้า" });
     }
     const value = p.barcodeValue || p.sku;
@@ -412,7 +413,8 @@ const getSupplierAnalytics = async (req, res, next) => {
 
     if (!stats) {
       // 💡 [อัปเกรด Security] ดักคนสุ่ม ID
-      logger.warn(`[Master] พยายามดึงสถิติคู่ค้าที่ไม่มีอยู่จริง (ID: ${id})`, { ip: req.ip, userId: req.user?.id });
+      const safeId = req.params.id.replace(/[\r\n]/g, '');
+      logger.warn(`[Master] พยายามดึงข้อมูลที่ไม่มีอยู่จริง (ID: ${safeId})`, { ip: req.ip, userId: req.user?.id });
       return res.status(404).json({ message: "ไม่พบข้อมูลคู่ค้า" });
     }
 

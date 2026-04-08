@@ -131,13 +131,15 @@ const getGoodsReceiptDetail = async (req, res, next) => {
         });
 
         if (!row) {
-            logger.warn(`[Inbound] พยายามเข้าถึงใบรับสินค้าที่ไม่มีอยู่จริง (ID: ${id})`, { ip: req.ip, userId: req.user?.id });
+            const safeId = (req.params?.id || id).replace(/[\r\n]/g, '');
+            logger.warn(`[Inbound] พยายามเข้าถึงข้อมูลที่ไม่มีอยู่จริง (ID: ${safeId})`, { ip: req.ip, userId: req.user?.id });
             return res.status(404).json({ message: "ไม่พบข้อมูลใบรับสินค้า" });
         }
 
         res.json(row);
     } catch (error) {
-        logger.error(`[Inbound] Error fetching Goods Receipt Detail (ID: ${req.params?.id})`, { error: error.message, ip: req.ip, userId: req.user?.id });
+        const safeId = (req.params?.id || id).replace(/[\r\n]/g, '');
+        logger.warn(`[Inbound] พยายามเข้าถึงข้อมูลที่ไม่มีอยู่จริง (ID: ${safeId})`, { ip: req.ip, userId: req.user?.id });
         next(error);
     }
 };

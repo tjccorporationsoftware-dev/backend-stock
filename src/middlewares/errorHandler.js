@@ -5,8 +5,6 @@ function errorHandler(err, req, res, next) {
   const code = err.statusCode || 500;
 
   if (code === 500) {
-    // 💡 [แก้ไขแล้ว] แยก req.method และ req.url ออกมาเป็น Argument เดี่ยวๆ ด้วยลูกน้ำ (,)
-    // เพื่อป้องกันไม่ให้ console.error นำข้อมูลจาก User ไปตีความว่าเป็น Format String (%s, %d)
     console.error("[Unhandled Server Error]", req.method, req.url, ":", err);
   }
 
