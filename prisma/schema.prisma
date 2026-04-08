@@ -1,0 +1,568 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUST
+  TRANSFER
+}
+
+model User {
+  id                   String                @id @default(uuid())
+  username             String                @unique
+  email                String?               @unique
+  firstName            String
+  lastName             String
+  passwordHash         String
+  isActive             Boolean               @default(true)
+  roles                UserRole[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  auditLogs            AuditLog[]
+  refreshTokens        RefreshToken[]
+  goodsReceipts        GoodsReceipt[]
+  deliveryOrders       DeliveryOrder[]
+  issuedTransfers      StockTransfer[] @relation("TransferIssuer")
+  receivedTransfers    StockTransfer[] @relation("TransferReceiver")
+  stockAdjustments     StockAdjustment[]
+  purchaseOrders       PurchaseOrder[]
+  prsRequested         PurchaseRequisition[] @relation("PrRequestedBy")
+  prsApproved          PrApproval[]          @relation("PrApprover")
+  stockRequisitions    StockRequisition[]
+  approvedRequisitions StockRequisition[]    @relation("ApproverRelation")
+  failedLoginAttempts  Int                   @default(0)
+  departmentId         String?
+  department           Department?           @relation(fields: [departmentId], references: [id])
+  lockedUntil          DateTime?
+  pdfPath              String?
+
+  createdCountTasks    CountTask[] @relation("CountTaskCreator")
+  assignedCountTasks   CountTask[] @relation("CountTaskAssignee")
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id    String           @id @default(uuid())
+  code  String           @unique
+  roles RolePermission[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String
+  revokedAt DateTime?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  method     String
+  path       String
+  statusCode Int
+  ip         String?
+  userAgent  String?
+  requestId  String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  abbr      String?  @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+model Unit {
+  id        String   @id @default(uuid())
+  name      String   @unique // เช่น PCS, BOX
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id                       String                    @id @default(uuid())
+  sku                      String                    @unique
+  name                     String
+  categoryId               String
+  unitId                   String
+  barcodeValue             String?                   @unique
+  barcodeType              String? // เช่น "code128"
+  isActive                 Boolean                   @default(true)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  category                 Category                  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  unit                     Unit                      @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  warehouseId              String?
+  warehouse                Warehouse?                @relation(fields: [warehouseId], references: [id])
+  zoneId                   String?
+  zone                     Zone?                     @relation(fields: [zoneId], references: [id])
+  locationId               String?
+  location                 Location?                 @relation(fields: [locationId], references: [id])
+  goodsReceiptItems        GoodsReceiptItem[]
+  deliveryOrderItems       DeliveryOrderItem[]
+  stockBalances            StockBalance[]
+  stockMovements           StockMovement[]
+  stockTransferItems       StockTransferItem[]
+  stockAdjustmentItems     StockAdjustmentItem[]
+  purchaseOrderItems       PurchaseOrderItem[]
+  purchaseRequisitionItems PurchaseRequisitionItem[]
+  stockRequisitionItems    StockRequisitionItem[]
+  minStock                 Int                       @default(20)
+  unitCost                 Float                     @default(0.0)
+  countTaskItems       CountTaskItem[]
+
+  @@index([categoryId])
+  @@index([unitId])
+  @@index([warehouseId]) // <--- ควรเพิ่ม index นี้ด้วยเพื่อความเร็ว
+  @@index([zoneId]) // <--- ควรเพิ่ม index นี้ด้วยเพื่อความเร็ว
+}
+
+model Warehouse {
+  id        String   @id @default(uuid())
+  code      String   @unique // เช่น WH1
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  zones     Zone[]
+  locations Location[]
+  products  Product[]
+}
+
+model Zone {
+  id          String   @id @default(uuid())
+  warehouseId String
+  code        String // เช่น A, B
+  name        String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  warehouse Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  locations Location[]
+  products  Product[]
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
+}
+
+model Location {
+  id          String   @id @default(uuid())
+  warehouseId String
+  zoneId      String?
+  code        String // เช่น A-01-01 (หรือ BIN001)
+  name        String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  warehouse          Warehouse           @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  zone               Zone?               @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  goodsReceiptItems  GoodsReceiptItem[]
+  deliveryOrderItems DeliveryOrderItem[]
+
+  products Product[]
+
+  stockBalances  StockBalance[]
+  stockMovements StockMovement[]
+
+  transferOutItems     StockTransferItem[]   @relation("FromLocation")
+  transferInItems      StockTransferItem[]   @relation("ToLocation")
+  stockAdjustmentItems StockAdjustmentItem[]
+  countTaskItems       CountTaskItem[]
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
+  @@index([zoneId])
+}
+
+model GoodsReceipt {
+  id              String         @id @default(uuid())
+  receiptNo       String         @unique
+  receivedAt      DateTime       @default(now())
+  receivedBy      String
+  remarks         String?
+  attachments     Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  user            User           @relation(fields: [receivedBy], references: [id])
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  pdfPath         String?
+
+  items GoodsReceiptItem[]
+}
+
+model GoodsReceiptItem {
+  id         String @id @default(uuid())
+  receiptId  String
+  productId  String
+  locationId String // ระบุ Location ที่เอาของไปเก็บ
+  quantity   Int // หรือ Float ถ้ามีทศนิยม
+  unitCost   Float  @default(0)
+
+  receipt  GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  product  Product      @relation(fields: [productId], references: [id])
+  location Location     @relation(fields: [locationId], references: [id])
+}
+
+model StockMovement {
+  id            String       @id @default(uuid())
+  type          MovementType // IN
+  productId     String
+  locationId    String
+  quantity      Int
+  referenceId   String? // เก็บ ID ของ GoodsReceipt
+  referenceType String? // ระบุว่าเป็น 'GOODS_RECEIPT'
+  createdAt     DateTime     @default(now())
+  createdBy     String // ID ของ User ที่ทำรายการ
+
+  product  Product  @relation(fields: [productId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+}
+
+model StockBalance {
+  id         String   @id @default(uuid())
+  productId  String
+  locationId String
+  quantity   Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  product  Product  @relation(fields: [productId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@unique([productId, locationId])
+}
+
+model DeliveryOrder {
+  id        String   @id @default(uuid())
+  doNo      String   @unique // เลขที่ใบจ่ายของ
+  reference String? // อ้างอิงเอกสารอื่น เช่น SO (Sales Order)
+  issuedAt  DateTime @default(now())
+  issuedBy  String // ID ของ User ที่ทำการจ่าย (ดึงจาก Token)
+  remarks   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  srId        String?
+  requisition StockRequisition? @relation(fields: [srId], references: [id])
+
+  items DeliveryOrderItem[]
+  user  User                @relation(fields: [issuedBy], references: [id])
+}
+
+model DeliveryOrderItem {
+  id         String @id @default(uuid())
+  doId       String
+  productId  String
+  locationId String // ตัดสต๊อกจากช่องไหน
+  quantity   Int
+
+  deliveryOrder DeliveryOrder @relation(fields: [doId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+  location      Location      @relation(fields: [locationId], references: [id])
+}
+
+model StockTransfer {
+  id           String   @id @default(uuid())
+  transferNo   String   @unique
+  reason       String?
+  status       String   @default("PENDING") // PENDING, IN_TRANSIT, COMPLETED, CANCELLED
+  issuedBy     String   // คนส่ง
+  receivedBy   String?  // คนรับ
+  createdAt    DateTime @default(now())
+  shippedAt    DateTime? // เวลาที่รถออก
+  receivedAt   DateTime? // เวลาที่ของถึงปลายทาง
+  issuedUser   User      @relation("TransferIssuer", fields: [issuedBy], references: [id])
+  receivedUser User?     @relation("TransferReceiver", fields: [receivedBy], references: [id])
+  items        StockTransferItem[]
+}
+
+model StockTransferItem {
+  id             String @id @default(uuid())
+  transferId     String
+  productId      String
+  fromLocationId String
+  toLocationId   String
+  shippedQty     Int    @default(0)
+  receivedQty    Int?
+  transfer       StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product        Product       @relation(fields: [productId], references: [id])
+  fromLocation   Location      @relation("FromLocation", fields: [fromLocationId], references: [id])
+  toLocation     Location      @relation("ToLocation", fields: [toLocationId], references: [id])
+}
+
+model StockAdjustment {
+  id         String   @id @default(uuid())
+  adjustNo   String   @unique // เลขที่เอกสาร เช่น ADJ-202603001
+  reasonCode String // รหัสสาเหตุ เช่น MISCOUNT (นับผิด), DAMAGED (ชำรุด), LOST (สูญหาย)
+  remarks    String? // หมายเหตุเพิ่มเติม
+  status     String   @default("COMPLETED") // สถานะ (เผื่อไว้ทำ Approval Workflow ทีหลัง)
+  adjustedBy String // ID พนักงานที่ทำรายการ
+  createdAt  DateTime @default(now())
+
+  user  User                  @relation(fields: [adjustedBy], references: [id])
+  items StockAdjustmentItem[]
+}
+
+model StockAdjustmentItem {
+  id           String @id @default(uuid())
+  adjustmentId String
+  productId    String
+  locationId   String
+  oldQuantity  Int // ยอดเดิมในระบบก่อนปรับ
+  newQuantity  Int // ยอดใหม่ที่นับได้หน้างานจริง
+  diffQuantity Int // ส่วนต่าง (บวก หรือ ลบ)
+
+  adjustment StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  product    Product         @relation(fields: [productId], references: [id])
+  location   Location        @relation(fields: [locationId], references: [id])
+}
+
+model PurchaseOrder {
+  id          String               @id @default(uuid())
+  poNumber    String               @unique // เลขที่ใบสั่งซื้อ เช่น PO-202603-001
+  vendorName  String // ชื่อ Supplier/ผู้ขาย
+  status      String               @default("PENDING") // PENDING (รอรับของ), PARTIAL (รับบางส่วน), COMPLETED (รับครบแล้ว)
+  orderedBy   String // ID พนักงานจัดซื้อที่เปิด PO
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  user        User                 @relation(fields: [orderedBy], references: [id])
+  items       PurchaseOrderItem[]
+  prId        String?
+  requisition PurchaseRequisition? @relation(fields: [prId], references: [id])
+  supplierId  String?
+  supplier    Supplier?            @relation(fields: [supplierId], references: [id])
+  pdfPath     String?
+
+  goodsReceipts GoodsReceipt[]
+}
+
+model PurchaseOrderItem {
+  id               String @id @default(uuid())StockMovementStockMovement
+  purchaseOrderId  String
+  productId        String
+  orderedQuantity  Int // จำนวนที่จัดซื้อ "สั่งซื้อ" ไป
+  receivedQuantity Int    @default(0) // จำนวนที่คลัง "รับเข้า" มาแล้ว (เอาไว้กันการรับของเกิน)
+  unitPrice        Float  @default(0) // ราคาต่อหน่วย (เอาไว้ประเมินมูลค่า)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+}
+
+model PurchaseRequisition {
+  id             String                    @id @default(uuid())
+  prNumber       String                    @unique // เลขที่ใบขอซื้อ เช่น PR-202603-001
+  purpose        String // วัตถุประสงค์ในการขอซื้อ (Audit Requirement)
+  status         String                    @default("PENDING") // สถานะ: PENDING (รออนุมัติ), APPROVED (อนุมัติ), REJECTED (ไม่อนุมัติ), PO_CREATED (สั่งซื้อแล้ว)
+  requestedBy    String // ID พนักงานที่ขอซื้อ
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  user           User                      @relation("PrRequestedBy", fields: [requestedBy], references: [id])
+  departmentId   String?
+  department     Department?               @relation(fields: [departmentId], references: [id])
+  items          PurchaseRequisitionItem[]
+  approvals      PrApproval[]
+  purchaseOrders PurchaseOrder[] // 1 ใบขอซื้อ สามารถนำไปเปิดเป็นใบสั่งซื้อ (PO) ได้
+  supplierId     String?
+  supplier       Supplier?                 @relation(fields: [supplierId], references: [id])
+  pdfPath        String?
+}
+
+model PurchaseRequisitionItem {
+  id             String @id @default(uuid())
+  prId           String
+  productId      String
+  quantity       Int // จำนวนที่ขอซื้อ
+  estimatedPrice Float  @default(0) // ราคาประเมิน (ให้ Manager ดูก่อนอนุมัติงบประมาณ)
+
+  requisition PurchaseRequisition @relation(fields: [prId], references: [id], onDelete: Cascade)
+  product     Product             @relation(fields: [productId], references: [id])
+}
+
+model PrApproval {
+  id         String    @id @default(uuid())
+  prId       String
+  approverId String // ID ของผู้จัดการที่มีสิทธิ์อนุมัติ
+  status     String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  comments   String? // หมายเหตุ (สำคัญมากเวลา Reject ต้องบอกเหตุผล)
+  createdAt  DateTime  @default(now())
+  actedAt    DateTime? // ประทับเวลาเมื่อมีการกดอนุมัติ/ปฏิเสธ
+
+  requisition PurchaseRequisition @relation(fields: [prId], references: [id], onDelete: Cascade)
+  approver    User                @relation("PrApprover", fields: [approverId], references: [id])
+  signature   String?             @db.Text
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String   @unique // เช่น ฝ่ายจัดซื้อ, ฝ่ายผลิต
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+
+  prs               PurchaseRequisition[]
+  stockRequisitions StockRequisition[]
+}
+
+model StockRequisition {
+  id               String                 @id @default(uuid())
+  srNumber         String                 @unique
+  purpose          String // วัตถุประสงค์หลัก
+  departmentId     String? // 💡 แผนกที่เบิก (Cost Center)
+  priority         String                 @default("NORMAL") // 💡 NORMAL, HIGH, URGENT
+  requiredDate     DateTime? // 💡 วันที่ต้องการใช้สินค้า
+  referenceNo      String? // 💡 เลขอ้างอิงโครงการ/ใบสั่งงาน
+  deliveryLocation String? // 💡 สถานที่ให้นำไปส่ง/ใช้งาน
+  remarks          String? // 💡 หมายเหตุรวม
+  status           String                 @default("PENDING") // PENDING, APPROVED, DISPATCHED, REJECTED
+  requestedBy      String
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  approvedBy       String?
+  approver         User?                  @relation("ApproverRelation", fields: [approvedBy], references: [id])
+  user             User                   @relation(fields: [requestedBy], references: [id])
+  department       Department?            @relation(fields: [departmentId], references: [id])
+  items            StockRequisitionItem[]
+  deliveryOrders   DeliveryOrder[]
+}
+
+model StockRequisitionItem {
+  id           String  @id @default(uuid())
+  srId         String
+  productId    String
+  quantity     Int
+  dispachedQty Int     @default(0)
+  remark       String? // 💡 หมายเหตุเฉพาะสินค้านั้นๆ (เช่น ขอเวอร์ชั่น 2.0)
+
+  requisition StockRequisition @relation(fields: [srId], references: [id], onDelete: Cascade)
+  product     Product          @relation(fields: [productId], references: [id])
+}
+
+model Supplier {
+  id                   String                @id @default(uuid())
+  code                 String                @unique // รหัสคู่ค้า เช่น VND-001
+  name                 String // ชื่อบริษัท/ร้านค้า
+  taxId                String? // เลขประจำตัวผู้เสียภาษี
+  contactName          String? // ชื่อผู้ติดต่อหลัก
+  phone                String?
+  email                String?
+  address              String?               @db.Text
+  creditDays           Int                   @default(30) // เครดิตกี่วัน
+  avgLeadTime          Int                   @default(7) // ระยะเวลาส่งของเฉลี่ย (วัน)
+  rating               Float                 @default(4.0) // คะแนน 1.0 - 5.0
+  isActive             Boolean               @default(true)
+  purchaseRequisitions PurchaseRequisition[]
+
+  // Relations
+  purchaseOrders PurchaseOrder[] // หนึ่งคู่ค้ามีหลายใบสั่งซื้อ
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CompanySettings {
+  id          String   @id @default("main-config")
+  name        String   @default("")
+  branch      String   @default("")
+  address     String   @default("")
+  subDistrict String   @default("")
+  district    String   @default("")
+  province    String   @default("")
+  zipCode     String   @default("")
+  taxId       String   @default("")
+  phone       String   @default("")
+  email       String   @default("")
+  logoUrl     String?  @db.Text
+  updatedAt   DateTime @updatedAt
+}
+
+model CountTask {
+  id            String          @id @default(uuid())
+  taskNo        String          @unique // เช่น CNT-20260407-001
+  status        String          @default("PENDING") // PENDING, COUNTING, REVIEW, COMPLETED, CANCELLED
+  remarks       String?         @db.Text
+  
+  createdBy     String          // ID หัวหน้าที่สร้าง
+  assignedTo    String?         // ID พนักงานที่ได้รับมอบหมาย
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  completedAt   DateTime?       // วันที่นับเสร็จ/อนุมัติ
+
+  items         CountTaskItem[]
+
+  // Relations
+  creator       User            @relation("CountTaskCreator", fields: [createdBy], references: [id])
+  assignee      User?           @relation("CountTaskAssignee", fields: [assignedTo], references: [id])
+}
+
+model CountTaskItem {
+  id            String      @id @default(uuid())
+  countTaskId   String
+  productId     String
+  locationId    String
+  
+  systemQty     Int         // ยอดในระบบตอนที่หัวหน้ากดสร้างใบสั่ง
+  countedQty    Int?        // ยอดที่พนักงานสแกนนับได้ (ถ้ายังไม่นับจะเป็น null)
+  diffQty       Int?        // ส่วนต่าง (countedQty - systemQty)
+
+  scannedAt     DateTime?   // เวลาที่พนักงานสแกนรายการนี้
+  
+  task          CountTask   @relation(fields: [countTaskId], references: [id], onDelete: Cascade)
+  product       Product     @relation(fields: [productId], references: [id])
+  location      Location    @relation(fields: [locationId], references: [id])
+}

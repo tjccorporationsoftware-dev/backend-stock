@@ -1,0 +1,17 @@
+const { logActivity } = require("../utils/auditService");
+
+function requirePermissions(required) {
+    return (req, res, next) => {
+        const perms = req.user?.perms || [];
+        const ok = required.every(p => perms.includes(p));
+        if (!ok) {
+            const userId = req.user?.id || "Unknown";
+            console.warn(`[Security Alert] User ID: ${userId} attempted to access restricted route.`);
+            logActivity(req, `พยายามเข้าถึงข้อมูลที่ไม่มีสิทธิ์ (ต้องการ: ${required.join(',')})`, "Security", userId);
+            return res.status(403).json({ message: "คุณไม่มีสิทธิ์เข้าถึงข้อมูลหรือทำรายการในส่วนนี้" });
+        }
+        next();
+    };
+}
+
+module.exports = { requirePermissions };
