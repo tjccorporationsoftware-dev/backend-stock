@@ -139,7 +139,8 @@ const getPRDetail = async (req, res, next) => {
         });
 
         if (!pr) {
-            logger.warn(`[Purchase] พยายามดูข้อมูล PR ที่ไม่มีอยู่จริง (ID: ${id})`, { ip: req.ip, userId: req.user?.id });
+            const safeFilename = filename.replace(/[\r\n]/g, '');
+            logger.warn(`[Security] Path Traversal Attempt: ${safeFilename}`, { ip: req.ip, userId: req.user?.id });
             return res.status(404).json({ message: "ไม่พบใบขอซื้อนี้" });
         }
         let approverData = null;

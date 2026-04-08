@@ -5,7 +5,11 @@ function errorHandler(err, req, res, next) {
   const code = err.statusCode || 500;
 
   if (code === 500) {
-    console.error("[Unhandled Server Error]", req.method, req.url, ":", err);
+    // 💡 ล้างค่าอักขระขึ้นบรรทัดใหม่ (\n, \r) เพื่อป้องกัน Log Injection อย่างสมบูรณ์
+    const safeMethod = req.method.replace(/[\r\n]/g, '');
+    const safeUrl = req.url.replace(/[\r\n]/g, '');
+
+    console.error("[Unhandled Server Error]", safeMethod, safeUrl, ":", err);
   }
 
   const msg = code === 500 ? "Internal Server Error" : err.message;
