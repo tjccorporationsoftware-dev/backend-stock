@@ -63,8 +63,7 @@ async function main() {
   });
 
   console.log("✅ การติดตั้งข้อมูลเริ่มต้นสำเร็จ");
-  // แสดงผลแค่ชื่อผู้ใช้และอีเมล ถือว่าปลอดภัยครับ ไม่เป็นช่องโหว่
-  console.log(`👤 ผู้ดูแลระบบ: ${adminUsername} (${adminEmail})`);
+  console.log("👤 บัญชีผู้ดูแลระบบถูกเตรียมความพร้อมเรียบร้อยแล้ว");
 }
 
 main()
@@ -73,6 +72,6 @@ main()
     console.error("❌ เกิดข้อผิดพลาดร้ายแรงระหว่างการ Seed ข้อมูล:", e.message || "Unknown error");
     process.exit(1);
   })
-  .finally(async () => { 
-    await prisma.$disconnect(); 
+  .finally(async () => {
+    await prisma.$disconnect();
   });
