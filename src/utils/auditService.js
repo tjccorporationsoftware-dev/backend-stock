@@ -25,8 +25,8 @@ async function logActivity(req, actionText, resource, resourceId = null, highPri
             meta: req.auditMeta || {} // เผื่ออยากแนบ JSON อะไรเพิ่ม
         };
 
-        // 💡 2. พ่นลงไฟล์ Log เสมอ
-        logger.info(`[AUDIT] ${actionText}`, data);
+        const safeAction = typeof actionText === 'string' ? actionText.replace(/[\r\n]/g, '') : actionText;
+        logger.info(`[AUDIT] ${safeAction}`, data);
 
         // 💡 3. ระบบแจ้งเตือน (ถ้าระบุว่าสำคัญ หรือเป็นเรื่องความปลอดภัย)
         if (highPriority || resource === "Security" || actionText.includes("ล้มเหลว")) {

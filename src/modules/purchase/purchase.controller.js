@@ -347,7 +347,8 @@ const viewPODocument = (req, res) => {
         // 💡 [อัปเกรด Security] ดักจับการเจาะระบบขโมยดูไฟล์ (Path Traversal) แล้วยิง LINE ทันที
         if (filename.includes('..') || filename.includes('/')) {
             logActivity(req, `พยายามเจาะระบบอ่านไฟล์ PO นอกระบบ (Path Traversal): ${filename}`, "Security", null, true);
-            logger.warn(`[Security] Path Traversal Attempt in PO Viewer: ${filename}`, { ip: req.ip, userId: req.user?.id });
+            const safeFilename = filename.replace(/[\r\n]/g, '');
+            logger.warn(`[Security] Path Traversal Attempt: ${safeFilename}`, { ip: req.ip, userId: req.user?.id });
             return res.status(403).send("Forbidden");
         }
 
@@ -357,7 +358,8 @@ const viewPODocument = (req, res) => {
             res.contentType("application/pdf");
             return res.sendFile(filePath);
         } else {
-            logger.warn(`[Purchase] พยายามเปิดไฟล์ PO ที่ไม่มีอยู่จริง: ${filename}`, { ip: req.ip, userId: req.user?.id });
+            const safeFilename = filename.replace(/[\r\n]/g, '');
+            logger.warn(`[Security] Path Traversal Attempt: ${safeFilename}`, { ip: req.ip, userId: req.user?.id });
             return res.status(404).json({ message: "ไม่พบไฟล์เอกสารบนเซิร์ฟเวอร์" });
         }
     } catch (error) {
@@ -792,7 +794,8 @@ const viewPRDocument = (req, res) => {
         // 💡 [อัปเกรด Security] ดักจับการเจาะระบบอ่านไฟล์นอกระบบ
         if (filename.includes('..') || filename.includes('/')) {
             logActivity(req, `พยายามเจาะระบบอ่านไฟล์ PR นอกระบบ (Path Traversal): ${filename}`, "Security", null, true);
-            logger.warn(`[Security] Path Traversal Attempt in PR Viewer: ${filename}`, { ip: req.ip, userId: req.user?.id });
+            const safeFilename = filename.replace(/[\r\n]/g, '');
+            logger.warn(`[Security] Path Traversal Attempt: ${safeFilename}`, { ip: req.ip, userId: req.user?.id });
             return res.status(403).send("Forbidden");
         }
 

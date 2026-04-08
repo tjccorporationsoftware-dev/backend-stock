@@ -33,7 +33,7 @@ async function getUser(req, res) {
 
     if (!user) {
       // 💡 [อัปเกรด Security] ดักคนสุ่ม ID เพื่อหวังดูข้อมูล User อื่น
-      logger.warn(`[User Controller] พยายามเรียกดูข้อมูล User ที่ไม่มีอยู่จริง (ID: ${id})`, { ip: req.ip, userId: req.user?.id });
+      logger.warn(`[User Controller] พยายามเรียกดูข้อมูล User ที่ไม่มีอยู่จริง (ID: ${id.replace(/[\r\n]/g, '')})`, { ip: req.ip, userId: req.user?.id });
       return res.status(404).json({ message: "ไม่พบข้อมูลพนักงาน" });
     }
 
