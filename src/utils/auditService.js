@@ -17,14 +17,14 @@ async function logActivity(req, actionText, resource, resourceId = null, highPri
         // 💡 1. แมปข้อมูลโดยใช้ค่าที่ผ่านการ Sanitize แล้วทั้งหมด
         const data = {
             userId: userId,
-            action: safeAction, // เปลี่ยนจาก actionText เป็น safeAction
+            action: safeAction, // 👈 ใช้ตัวแปรที่ปลอดภัยแล้ว
             resource: resource,
             resourceId: resourceId?.toString() || null,
-            method: safeMethod, // ใช้ safeMethod
-            path: safePath,     // ใช้ safePath
+            method: safeMethod, // 👈 ใช้ตัวแปรที่ปลอดภัยแล้ว
+            path: safePath,     // 👈 ใช้ตัวแปรที่ปลอดภัยแล้ว
             statusCode: req.res ? req.res.statusCode : 200,
-            ip: safeIp,         // ใช้ safeIp
-            userAgent: safeUserAgent, // ใช้ safeUserAgent
+            ip: safeIp,         // 👈 ใช้ตัวแปรที่ปลอดภัยแล้ว
+            userAgent: safeUserAgent, // 👈 ใช้ตัวแปรที่ปลอดภัยแล้ว
             requestId: traceId,
             meta: req.auditMeta || {}
         };
@@ -37,7 +37,7 @@ async function logActivity(req, actionText, resource, resourceId = null, highPri
             sendSecurityAlert(safeAction, { ip: safeIp, userId, path: safePath, reqId: traceId });
         }
 
-        // 💡 4. บันทึกลงตาราง AuditLog ใน Database
+        // 💡 4. บันทึกลงตาราง AuditLog
         if (highPriority) {
             await prisma.auditLog.create({ data }).catch(e => logger.error("DB Log Error:", { err: e.message }));
         } else {
