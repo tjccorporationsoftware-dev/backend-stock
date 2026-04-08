@@ -806,7 +806,8 @@ const viewPRDocument = (req, res) => {
             return res.sendFile(filePath);
         }
 
-        logger.warn(`[Purchase] พยายามเปิดไฟล์ PR ที่ไม่มีอยู่จริง: ${filename}`, { ip: req.ip, userId: req.user?.id });
+        const safeFilename = filename.replace(/[\r\n]/g, '');
+        logger.warn(`[Security] Path Traversal Attempt: ${safeFilename}`, { ip: req.ip, userId: req.user?.id });
         res.status(404).json({ message: "ไม่พบไฟล์เอกสาร" });
     } catch (error) {
         logger.error("[Purchase] View PR Document Error", { error: error.message, ip: req.ip, userId: req.user?.id });
