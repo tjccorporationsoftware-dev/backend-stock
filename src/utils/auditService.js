@@ -7,7 +7,7 @@ async function logActivity(req, actionText, resource, resourceId = null, highPri
         const traceId = req.requestId || null;
         const userId = req.user?.id || null;
 
-        // 💡 [แก้ไข] ล้างค่าอักขระขึ้นบรรทัดใหม่ (\n, \r) จากข้อมูลที่มาจาก Request ทั้งหมด
+        // 💡 [แก้ไข] ล้างอักขระขึ้นบรรทัดใหม่ (\n, \r) จากทุกค่าที่มาจาก Request
         const safeIp = (req.ip || "unknown").replace(/[\r\n]/g, '');
         const safePath = (req.originalUrl || "system").replace(/[\r\n]/g, '');
         const safeMethod = (req.method || "SYSTEM").replace(/[\r\n]/g, '');
@@ -29,7 +29,7 @@ async function logActivity(req, actionText, resource, resourceId = null, highPri
             meta: req.auditMeta || {}
         };
 
-        // 💡 2. พ่นลงไฟล์ Log (ตอนนี้จะปลอดภัย 100% ในสายตา CodeQL)
+        // 💡 2. พ่นลงไฟล์ Log (คราวนี้จะปลอดภัย 100% ในสายตา CodeQL)
         logger.info(`[AUDIT] ${safeAction}`, data);
 
         // 💡 3. ระบบแจ้งเตือน
