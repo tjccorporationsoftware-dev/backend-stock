@@ -520,7 +520,8 @@ const createGoodsReceipt = async (req, res, next) => {
 
         const UPLOAD_DIR_GR = path.join(process.cwd(), 'public', 'uploads', 'grs');
         if (!fs.existsSync(UPLOAD_DIR_GR)) fs.mkdirSync(UPLOAD_DIR_GR, { recursive: true });
-        const fileName = `${receiptNo}.pdf`;
+        const safeReceiptNo = path.basename(receiptNo);
+        const fileName = `${safeReceiptNo}.pdf`;
         const filePath = path.join(UPLOAD_DIR_GR, fileName);
         const pdfUrl = `/uploads/grs/${fileName}`;
 
@@ -1096,7 +1097,8 @@ const generatePOPdf = async (req, res, next) => {
             fs.mkdirSync(storageDir, { recursive: true });
         }
 
-        const fileName = `PO-${po.poNumber}-${Date.now()}.pdf`;
+        const safePoNumber = path.basename(po.poNumber);
+        const fileName = `PO-${safePoNumber}-${Date.now()}.pdf`;
         const fullPath = path.join(storageDir, fileName);
         fs.writeFileSync(fullPath, pdfBuffer);
 

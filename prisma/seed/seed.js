@@ -15,7 +15,7 @@ async function main() {
   const perms = [
     "user.read", "user.create", "user.update", "user.disable", "user.assignRole", "user.delete",
     "role.read", "role.manage", "audit.read", "system.admin", "master.read", "master.manage",
-    "product.read", "product.manage", "warehouse.read", "warehouse.manage",
+    "product.read", "product.manage", "warehouse.manage", "warehouse.read",
     "INBOUND_CREATE", "TRANSFER_CREATE", "OUTBOUND_CREATE", "INVENTORY_VIEW", "REPORT_EXPORT",
   ];
 
@@ -63,12 +63,16 @@ async function main() {
   });
 
   console.log("✅ การติดตั้งข้อมูลเริ่มต้นสำเร็จ");
+  // แสดงผลแค่ชื่อผู้ใช้และอีเมล ถือว่าปลอดภัยครับ ไม่เป็นช่องโหว่
   console.log(`👤 ผู้ดูแลระบบ: ${adminUsername} (${adminEmail})`);
 }
 
 main()
   .catch((e) => {
-    console.error("❌ เกิดข้อผิดพลาดร้ายแรง:", e.message);
+    // ป้องกันการ Log error object ทั้งก้อน เผื่อมีข้อมูล Database Connection หลุดออกมา
+    console.error("❌ เกิดข้อผิดพลาดร้ายแรงระหว่างการ Seed ข้อมูล:", e.message || "Unknown error");
     process.exit(1);
   })
-  .finally(async () => { await prisma.$disconnect(); });
+  .finally(async () => { 
+    await prisma.$disconnect(); 
+  });

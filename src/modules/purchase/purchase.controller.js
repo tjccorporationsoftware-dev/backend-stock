@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { logActivity } = require('../../utils/auditService');
 const logger = require('../../utils/logger'); // 💡 [เพิ่ม] นำเข้า Logger
+const EXPORT_DIR = path.resolve(__dirname, '../../public/exports/pdfs');
 
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'pos');
 const UPLOAD_DIR_PR = path.join(process.cwd(), 'public', 'uploads', 'prs');
@@ -220,7 +221,8 @@ const executeApproveAndIssuePO = async (req, res) => {
         if (!fs.existsSync(UPLOAD_DIR)) {
             fs.mkdirSync(UPLOAD_DIR, { recursive: true });
         }
-        const fileName = `${poNumber}.pdf`;
+        const safePoNumber = path.basename(poNumber);
+        const fileName = `${safePoNumber}.pdf`;
         const filePath = path.join(UPLOAD_DIR, fileName);
 
         const htmlTemplate = `
@@ -394,7 +396,8 @@ const approvePRWithPDF = async (req, res) => {
         const totalAmount = pr.items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.estimatedPrice)), 0);
 
         if (!fs.existsSync(UPLOAD_DIR_PR)) fs.mkdirSync(UPLOAD_DIR_PR, { recursive: true });
-        const fileName = `${pr.prNumber}.pdf`;
+        const safePrNumber = path.basename(pr.prNumber);
+        const fileName = `${safePrNumber}.pdf`;
         const filePath = path.join(UPLOAD_DIR_PR, fileName);
 
         // 💡 2. เตรียมข้อมูลบริษัท
@@ -602,7 +605,8 @@ const createPOFromPR = async (req, res) => {
 
         const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'pos');
         if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-        const fileName = `${poNumber}.pdf`;
+        const safePoNumber = path.basename(poNumber);
+        const fileName = `${safePoNumber}.pdf`;
         const filePath = path.join(UPLOAD_DIR, fileName);
 
         const companyName = company?.name || "บริษัท ทีเจซี คอร์ปอเรชั่น จำกัด";
