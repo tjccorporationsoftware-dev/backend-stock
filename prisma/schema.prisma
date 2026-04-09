@@ -20,6 +20,7 @@ model User {
   email                String?               @unique
   firstName            String
   lastName             String
+  avatarUrl            String?
   passwordHash         String
   isActive             Boolean               @default(true)
   roles                UserRole[]
@@ -391,7 +392,7 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderItem {
-  id               String @id @default(uuid())StockMovementStockMovement
+  id               String @id @default(uuid())
   purchaseOrderId  String
   productId        String
   orderedQuantity  Int // จำนวนที่จัดซื้อ "สั่งซื้อ" ไป

@@ -167,7 +167,57 @@ async function logout(req, res) {
 }
 
 async function me(req, res) {
-  return res.json({ userId: req.user.id, perms: req.user.perms });
+  try {
+    // 💡 ดึงข้อมูล First Name, Last Name จากตาราง User
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { firstName: true, lastName: true, username: true, avatarUrl: true } 
+    });
+
+    return res.json({ 
+      userId: req.user.id, 
+      perms: req.user.perms,
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      avatarUrl: user.avatarUrl || null,
+      username: user?.username || ""
+    });
+  } catch (error) {
+    console.error("[Get Me Error]:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 }
 
-module.exports = { login, refresh, logout, me };
+async function updateAvatar(req, res) {
+  try {
+    const userId = req.user.id;
+
+    // ตรวจสอบว่ามีไฟล์ส่งมาหรือไม่ (Multer จะใส่ไว้ใน req.file)
+    if (!req.file) {
+      return res.status(400).json({ message: "ไม่พบไฟล์ที่อัปโหลด" });
+    }
+
+    // สร้าง Path ของรูปภาพเพื่อบันทึกลงฐานข้อมูล
+    // สมมติว่าเราเปิด static path ไว้ที่ /uploads
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+    // อัปเดต avatarUrl ในตาราง User
+    await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: avatarUrl }
+    });
+
+    // บันทึก Log กิจกรรม
+    logActivity(req, "เปลี่ยนรูปโปรไฟล์", "Auth", userId, false);
+
+    return res.json({ 
+      success: true, 
+      avatarUrl: avatarUrl 
+    });
+  } catch (error) {
+    console.error("[Update Avatar Error]:", error);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ" });
+  }
+}
+
+module.exports = { login, refresh, logout, me, updateAvatar };
