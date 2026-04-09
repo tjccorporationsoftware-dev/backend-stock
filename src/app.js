@@ -11,6 +11,7 @@ const path = require("path");
 const { requestIdMiddleware } = require("./utils/requestId");
 const { errorHandler } = require("./middlewares/errorHandler");
 
+
 const { authRoutes } = require("./modules/auth/auth.routes");
 const { userRoutes } = require("./modules/users/users.routes");
 const { auditRoutes } = require("./modules/audit/audit.routes");
@@ -34,7 +35,6 @@ app.use(helmet({
   hsts: process.env.NODE_ENV === "production"
     ? { maxAge: 31536000, includeSubDomains: true, preload: true }
     : false,
-  // 💡 สำคัญ: อนุญาตให้รูปภาพโหลดข้าม Domain ได้ (ป้องกันรูปไม่ขึ้นใน Chrome/Edge)
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
@@ -42,20 +42,22 @@ app.use(hpp());
 app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
 
-// 💡 [เพิ่มบรรทัดนี้] เปิดทางให้เข้าถึงไฟล์รูปภาพในโฟลเดอร์ public/uploads 
-// เช่น http://localhost:4000/uploads/avatars/image.jpg
-app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")));
-
 const allowlist = (process.env.CORS_ALLOWLIST || "").split(",").filter(Boolean);
+
+app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")));
 
 app.use(cors({
   origin: (origin, cb) => {
+    // 1. ถ้าใน .env มีตั้งค่า "*" ไว้ หรือ
+    // 2. ถ้าไม่มี origin (เช่น ยิงผ่าน Postman หรือ Server-to-Server) หรือ
+    // 3. ถ้า origin ตรงกับ URL ที่ตั้งไว้ใน .env
     if (allowlist.includes("*") || !origin || allowlist.includes(origin)) {
       return cb(null, true);
     }
+    
     return cb(new Error("CORS blocked"), false);
   },
-  credentials: true,
+  credentials: true, // อนุญาตให้ส่ง Cookie/Token ข้ามโดเมนได้
 }));
 
 app.use(rateLimit({
@@ -68,7 +70,6 @@ app.use(rateLimit({
     message: "ระบบตรวจพบการส่งข้อมูลที่ผิดปกติ กรุณารอ 5 นาทีแล้วลองใหม่"
   }
 }));
-
 app.use((req, res, next) => {
   const proto = req.headers["x-forwarded-proto"];
   if (process.env.NODE_ENV === "production" && proto && proto !== "https") {
@@ -76,6 +77,8 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+
 
 app.get("/health", (req, res) => res.json({ ok: true, message: "System is healthy" }));
 
@@ -91,6 +94,7 @@ app.use("/inventory/count-tasks", countTaskRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/purchase', purchaseRoutes);
 app.use('/api/settings', settingsRoutes);
+
 
 app.use(errorHandler);
 
