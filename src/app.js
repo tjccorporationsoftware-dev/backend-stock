@@ -44,7 +44,21 @@ app.use(cookieParser());
 
 const allowlist = (process.env.CORS_ALLOWLIST || "").split(",").filter(Boolean);
 
-app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")));
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "พยายามเข้าสู่ระบบมากเกินไป กรุณารอ 15 นาทีแล้วลองใหม่"
+  }
+});
+
+app.use(
+  "/uploads/avatars",
+  express.static(path.join(process.cwd(), "public/uploads/avatars"))
+);
 
 app.use(cors({
   origin: (origin, cb) => {
@@ -78,6 +92,8 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use("/auth/login", authLimiter);
+app.use("/auth/refresh", authLimiter);
 
 
 app.get("/health", (req, res) => res.json({ ok: true, message: "System is healthy" }));

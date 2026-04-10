@@ -2,87 +2,87 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function forceFix() {
-    const targetUsername = 'admin';
+    const targetUsername = 'admin'; // เปลี่ยนเป็น Username ของคุณ
 
-    console.log('🔍 [System Security] กำลังเริ่มกระบวนการตรวจสอบและอัปเดตสิทธิ์...');
+    console.log('🚀 [System Security] กำลังปรับปรุงกลุ่มผู้ใช้งานและสิทธิ์ทั้งระบบ...');
 
-    const permissionCodes = [
-        'INBOUND_READ', 'INBOUND_CREATE',
-        'OUTBOUND_READ', 'OUTBOUND_CREATE',
-        'INVENTORY_VIEW',      // 🔑 สำหรับดูยอดบาลานซ์
-        'INVENTORY_TRANSFER',  // 🔑 สำหรับโอนย้าย
-        'INVENTORY_ADJUST',    // 💡 🔑 กุญแจดอกใหม่! สำหรับหน้าปรับปรุงยอด (ต้องมีคำนี้)
-        'MASTER_DATA_READ',    // 🔑 สำหรับดึง Dropdown คลังและสินค้า
-        'AUDIT_LOG_VIEW',
-        'MASTER_DATA_CREATE',    // 🔑 สำหรับดึง Dropdown คลังและสินค้า
-        'PURCHASE_CREATE',
-        "PR_READ",
-        "PR_CREATE",     // 🔑 สำหรับสร้างใบสั่งซื้อ (PO),
-        "PR_APPROVE", // สำหรับให้ Manager กดอนุมัติ
-        "REQUISITION_CREATE",  // 🔑 สำหรับให้พนักงานกด "สร้างใบเบิก"
-        "REQUISITION_APPROVE",// 🔑 สำหรับให้หัวหน้ากด "อนุมัติ/ปฏิเสธ" ใบเบิก
-        "INVENTORY_READ",
-        "MASTER_EDITx" ,
-        "ADMIN"
-
+    // 1. รายชื่อสิทธิ์ทั้งหมด 23 รายการ
+    const allPermissions = [
+        'SYSTEM_SETTINGS_MANAGE', 'USER_MANAGE', 'AUDIT_LOG_VIEW',
+        'MASTER_DATA_READ', 'MASTER_DATA_MANAGE', 'WAREHOUSE_MANAGE',
+        'PR_READ', 'PR_CREATE', 'PR_APPROVE', 'PO_MANAGE',
+        'INBOUND_READ', 'INBOUND_CREATE', 'OUTBOUND_READ', 'OUTBOUND_CREATE',
+        'REQUISITION_READ', 'REQUISITION_CREATE', 'REQUISITION_APPROVE',
+        'INVENTORY_READ', 'TRANSFER_MANAGE', 'ADJUSTMENT_MANAGE', 'COUNT_TASK_MANAGE',
+        'DASHBOARD_VIEW', 'REPORT_EXPORT'
     ];
 
-    // สร้างหรืออัปเดต Permission ในฐานข้อมูล
-    const perms = [];
-    for (const code of permissionCodes) {
+    // สร้างสิทธิ์ทั้งหมดลง DB
+    const permObjects = [];
+    for (const code of allPermissions) {
         const p = await prisma.permission.upsert({
-            where: { code },
-            update: {},
-            create: { code }
+            where: { code }, update: {}, create: { code }
         });
-        perms.push(p);
-        console.log(`✅ Verified Permission: ${code}`);
+        permObjects.push(p);
     }
 
-    // 2. ตรวจสอบ User
-    const user = await prisma.user.findUnique({
-        where: { username: targetUsername },
-        include: { roles: { include: { role: true } } }
-    });
+    // 2. นิยามกลุ่มผู้ใช้ (Roles) และ สิทธิ์ที่ควรได้รับ (Default Mapping)
+    const rolesConfig = [
+        { name: 'Admin', perms: allPermissions }, // ได้ทุกอย่าง
+        { 
+            name: 'Executive', 
+            perms: ['DASHBOARD_VIEW', 'REPORT_EXPORT', 'PR_APPROVE', 'REQUISITION_APPROVE', 'INVENTORY_READ', 'AUDIT_LOG_VIEW'] 
+        },
+        { 
+            name: 'Purchasing', 
+            perms: ['PR_READ', 'PR_CREATE', 'PO_MANAGE', 'MASTER_DATA_READ', 'MASTER_DATA_MANAGE', 'INBOUND_READ'] 
+        },
+        { 
+            name: 'Warehouse', 
+            perms: ['INBOUND_READ', 'INBOUND_CREATE', 'OUTBOUND_READ', 'OUTBOUND_CREATE', 'INVENTORY_READ', 'TRANSFER_MANAGE', 'ADJUSTMENT_MANAGE', 'COUNT_TASK_MANAGE', 'WAREHOUSE_MANAGE'] 
+        },
+        { 
+            name: 'Staff', 
+            perms: ['REQUISITION_READ', 'REQUISITION_CREATE', 'PR_READ', 'PR_CREATE', 'INVENTORY_READ'] 
+        }
+    ];
 
-    if (!user) {
-        console.error(`❌ CRITICAL ERROR: ไม่พบ User '${targetUsername}' ในระบบ`);
-        return;
+    // 3. เริ่มกระบวนการสร้าง Role และผูก Permission
+    for (const roleCfg of rolesConfig) {
+        // สร้าง Role
+        const role = await prisma.role.upsert({
+            where: { name: roleCfg.name },
+            update: {},
+            create: { name: roleCfg.name }
+        });
+
+        // ล้างสิทธิ์เก่าของ Role นี้ออกก่อน เพื่อป้องกันสิทธิ์ซ้ำซ้อน
+        await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+
+        // ผูกสิทธิ์ใหม่ตาม Config
+        const rolePermData = permObjects
+            .filter(p => roleCfg.perms.includes(p.code))
+            .map(p => ({ roleId: role.id, permissionId: p.id }));
+
+        await prisma.rolePermission.createMany({ data: rolePermData });
+        console.log(`✅ Role [${roleCfg.name}]: อัปเดต ${rolePermData.length} สิทธิ์เรียบร้อย`);
     }
 
-    // 3. จัดการ Role และผูก Permission (หลักการ Least Privilege)
-    // สำหรับ Admin เราจะให้กุญแจทุกดอก แต่ในงานวิจัยคุณสามารถแยก Role อื่นได้ภายหลัง
-    let adminRoleId;
-    if (user.roles.length === 0) {
-        const adminRole = await prisma.role.upsert({
-            where: { name: 'Admin' },
-            update: {},
-            create: { name: 'Admin' }
-        });
-        adminRoleId = adminRole.id;
-
+    // 4. บังคับให้ User ของเราเป็น Admin (เพื่อไม่ให้หลุดสิทธิ์การจัดการ)
+    const user = await prisma.user.findUnique({ where: { username: targetUsername } });
+    if (user) {
+        const adminRole = await prisma.role.findFirst({ where: { name: 'Admin' } });
         await prisma.userRole.upsert({
             where: { userId_roleId: { userId: user.id, roleId: adminRole.id } },
             update: {},
             create: { userId: user.id, roleId: adminRole.id }
         });
-    } else {
-        adminRoleId = user.roles[0].roleId; // ใช้ Role แรกที่มี
+        console.log(`✨ บังคับ User @${targetUsername} เป็น Admin เรียบร้อย`);
     }
 
-    // ผูกกุญแจสิทธิ์ทั้งหมดเข้ากับ Role
-    for (const p of perms) {
-        await prisma.rolePermission.upsert({
-            where: { roleId_permissionId: { roleId: adminRoleId, permissionId: p.id } },
-            update: {},
-            create: { roleId: adminRoleId, permissionId: p.id }
-        });
-    }
-
-    console.log(`✨ [Security Update] อัปเดตสิทธิ์ ${permissionCodes.length} รายการให้ Role เรียบร้อยแล้ว`);
-    console.log('👉 คำแนะนำ: กรุณา Logout และ Login ใหม่เพื่ออัปเดต Token ชุดใหม่ครับ');
+    console.log('\n🌟 ทุกอย่างเรียบร้อย! กรุณารีเฟรชหน้าเว็บ หรือ Login ใหม่ครับ');
 }
 
 forceFix()
-    .catch(e => console.error('❌ Error during security update:', e))
-    .finally(() => prisma.$disconnect());
+    .catch(e => console.error('❌ Error:', e))
+    .finally(async () => await prisma.$disconnect());

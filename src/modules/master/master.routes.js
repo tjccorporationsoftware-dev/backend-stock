@@ -68,25 +68,18 @@ const updateMasterSchema = z.object({
 /** Product */
 const createProductSchema = z.object({
     body: z.object({
-        sku: codeSchema,
         name: nameSchema,
-
-        // 💡 แก้ไข: เปลี่ยนมาใช้ .trim().min(1) แทน .uuid()
         categoryId: z.string().trim().min(1, "Category ID ไม่ถูกต้อง"),
         unitId: z.string().trim().min(1, "Unit ID ไม่ถูกต้อง"),
-
-        // 💡 แก้ไข: ใช้ตัวแปรใหม่ที่รองรับ ID ทุกรูปแบบ
         warehouseId: safeOptionalId,
         zoneId: safeOptionalId,
         locationId: safeOptionalId,
-
         barcodeValue: z.string().trim().max(100).optional(),
         barcodeType: z.string().trim().max(20).optional(),
     }).strict(),
     query: z.object({}).passthrough(),
     params: z.object({}).passthrough(),
 });
-
 const updateProductSchema = z.object({
     body: z.object({
         name: nameSchema.optional(),
@@ -150,44 +143,44 @@ const updateSupplierSchema = z.object({
 });
 
 /** Read Routes */
-router.get("/categories", requireAuth, requirePermissions(["master.read"]), c.listCategories);
-router.get("/units", requireAuth, requirePermissions(["master.read"]), c.listUnits);
-router.get("/products", requireAuth, requirePermissions(["product.read"]), c.listProducts);
-router.get("/warehouses", requireAuth, requirePermissions(["warehouse.read"]), c.listWarehouses);
-router.get("/zones", requireAuth, requirePermissions(["warehouse.read"]), c.listZones);
-router.get("/locations", requireAuth, requirePermissions(["warehouse.read"]), c.listLocations);
+router.get("/categories", requireAuth, requirePermissions(["MASTER_DATA_READ"]), c.listCategories);
+router.get("/units", requireAuth, requirePermissions(["MASTER_DATA_READ"]), c.listUnits);
+router.get("/products", requireAuth, requirePermissions(["MASTER_DATA_READ"]), c.listProducts);
+router.get("/warehouses", requireAuth, requirePermissions(["MASTER_DATA_READ"]), c.listWarehouses);
+router.get("/zones", requireAuth, requirePermissions(["MASTER_DATA_READ"]), c.listZones);
+router.get("/locations", requireAuth, requirePermissions(["MASTER_DATA_READ"]), c.listLocations);
 
 /** Manage Routes */
-router.post("/categories", requireAuth, requirePermissions(["master.manage"]), validate(createCategorySchema), c.createCategory);
-router.put("/categories/:id", requireAuth, requirePermissions(["master.manage"]), validate(updateCategorySchema), c.updateCategory);
-router.delete("/categories/:id", requireAuth, requirePermissions(["master.manage"]), c.deleteCategory);
+router.post("/categories", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), validate(createCategorySchema), c.createCategory);
+router.put("/categories/:id", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), validate(updateCategorySchema), c.updateCategory);
+router.delete("/categories/:id", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), c.deleteCategory);
 
-router.post("/units", requireAuth, requirePermissions(["master.manage"]), validate(createUnitSchema), c.createUnit);
-router.put("/units/:id", requireAuth, requirePermissions(["master.manage"]), validate(updateUnitSchema), c.updateUnit);
-router.delete("/units/:id", requireAuth, requirePermissions(["master.manage"]), c.deleteUnit);
+router.post("/units", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), validate(createUnitSchema), c.createUnit);
+router.put("/units/:id", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), validate(updateUnitSchema), c.updateUnit);
+router.delete("/units/:id", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), c.deleteUnit);
 
-router.post("/products", requireAuth, requirePermissions(["product.manage"]), validate(createProductSchema), c.createProduct);
-router.patch("/products/:id", requireAuth, requirePermissions(["product.manage"]), validate(updateProductSchema), c.updateProduct);
-router.delete("/products/:id", requireAuth, requirePermissions(["product.manage"]), c.deleteProduct);
-router.get("/products/:id/barcode.png", requireAuth, requirePermissions(["product.read"]), c.getProductBarcodePng);
+router.post("/products", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), validate(createProductSchema), c.createProduct);
+router.patch("/products/:id", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), validate(updateProductSchema), c.updateProduct);
+router.delete("/products/:id", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), c.deleteProduct);
+router.get("/products/:id/barcode.png", requireAuth, requirePermissions(["MASTER_DATA_READ"]), c.getProductBarcodePng);
 
-router.post("/warehouses", requireAuth, requirePermissions(["warehouse.manage"]), validate(createWarehouseSchema), c.createWarehouse);
-router.post("/zones", requireAuth, requirePermissions(["warehouse.manage"]), validate(createZoneSchema), c.createZone);
-router.post("/locations", requireAuth, requirePermissions(["warehouse.manage"]), validate(createLocationSchema), c.createLocation);
-router.post("/products/batch", requireAuth, requirePermissions(["product.manage"]), c.createProductBatch);
+router.post("/warehouses", requireAuth, requirePermissions(["WAREHOUSE_MANAGE"]), validate(createWarehouseSchema), c.createWarehouse);
+router.post("/zones", requireAuth, requirePermissions(["WAREHOUSE_MANAGE"]), validate(createZoneSchema), c.createZone);
+router.post("/locations", requireAuth, requirePermissions(["WAREHOUSE_MANAGE"]), validate(createLocationSchema), c.createLocation);
+router.post("/products/batch", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), c.createProductBatch);
 
-router.get("/departments", requireAuth, requirePermissions(["master.read"]), c.listDepartments);
-router.post("/departments", requireAuth, requirePermissions(["master.manage"]), c.createDepartment);
-router.put("/departments/:id", requireAuth, requirePermissions(["master.manage"]), c.updateDepartment);
-router.delete("/departments/:id", requireAuth, requirePermissions(["master.manage"]), c.deleteDepartment);
+router.get("/departments", requireAuth, requirePermissions(["MASTER_DATA_READ"]), c.listDepartments);
+router.post("/departments", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), c.createDepartment);
+router.put("/departments/:id", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), c.updateDepartment);
+router.delete("/departments/:id", requireAuth, requirePermissions(["MASTER_DATA_MANAGE"]), c.deleteDepartment);
 
-router.get('/suppliers', requireAuth, c.getSuppliers);
-router.post('/suppliers', requireAuth, requirePermissions(['master.manage']), c.createSupplier);
-router.get('/suppliers/:id/analytics', requireAuth, c.getSupplierAnalytics);
-router.patch('/suppliers/:id', requireAuth, requirePermissions(['master.manage']), validate(updateSupplierSchema), c.updateSupplier);
+// 💡 เพิ่มสิทธิ์ MASTER_DATA_READ ที่ขาดหายไปในส่วนของการดูซัพพลายเออร์
+router.get('/suppliers', requireAuth, requirePermissions(['MASTER_DATA_READ']), c.getSuppliers);
+router.post('/suppliers', requireAuth, requirePermissions(['MASTER_DATA_MANAGE']), c.createSupplier);
+router.get('/suppliers/:id/analytics', requireAuth, requirePermissions(['MASTER_DATA_READ']), c.getSupplierAnalytics);
+router.patch('/suppliers/:id', requireAuth, requirePermissions(['MASTER_DATA_MANAGE']), validate(updateSupplierSchema), c.updateSupplier);
 
-router.delete("/warehouses/:id", requireAuth, requirePermissions(['warehouse.manage']), c.deleteWarehouse);
-router.delete("/zones/:id", requireAuth, requirePermissions(['warehouse.manage']), c.deleteZone);
-router.delete("/locations/:id", requireAuth, requirePermissions(['warehouse.manage']), c.deleteLocation);
-
+router.delete("/warehouses/:id", requireAuth, requirePermissions(['WAREHOUSE_MANAGE']), c.deleteWarehouse);
+router.delete("/zones/:id", requireAuth, requirePermissions(['WAREHOUSE_MANAGE']), c.deleteZone);
+router.delete("/locations/:id", requireAuth, requirePermissions(['WAREHOUSE_MANAGE']), c.deleteLocation);
 module.exports = { masterRoutes: router };

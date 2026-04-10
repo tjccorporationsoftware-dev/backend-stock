@@ -14,30 +14,23 @@ async function logActivity(req, actionText, resource, resourceId = null, highPri
         const safeUserAgent = (req.headers["user-agent"] || "unknown").replace(/[\r\n]/g, '');
         const safeAction = typeof actionText === 'string' ? actionText.replace(/[\r\n]/g, '') : actionText;
 
-        // 💡 1. แมปข้อมูลโดยใช้ค่าที่ผ่านการ Sanitize แล้วทั้งหมด
         const data = {
             userId: userId,
-            action: safeAction, // 👈 ใช้ตัวแปรที่ปลอดภัยแล้ว
+            action: safeAction,
             resource: resource,
             resourceId: resourceId?.toString() || null,
-            method: safeMethod, // 👈 ใช้ตัวแปรที่ปลอดภัยแล้ว
-            path: safePath,     // 👈 ใช้ตัวแปรที่ปลอดภัยแล้ว
+            method: safeMethod,
+            path: safePath, 
             statusCode: req.res ? req.res.statusCode : 200,
-            ip: safeIp,         // 👈 ใช้ตัวแปรที่ปลอดภัยแล้ว
-            userAgent: safeUserAgent, // 👈 ใช้ตัวแปรที่ปลอดภัยแล้ว
+            ip: safeIp,
+            userAgent: safeUserAgent,
             requestId: traceId,
             meta: req.auditMeta || {}
         };
-
-        // 💡 2. พ่นลงไฟล์ Log (คราวนี้จะปลอดภัย 100% ในสายตา CodeQL)
         logger.info(`[AUDIT] ${safeAction}`, data);
-
-        // 💡 3. ระบบแจ้งเตือน
         if (highPriority || resource === "Security" || safeAction.includes("ล้มเหลว")) {
             sendSecurityAlert(safeAction, { ip: safeIp, userId, path: safePath, reqId: traceId });
         }
-
-        // 💡 4. บันทึกลงตาราง AuditLog
         if (highPriority) {
             await prisma.auditLog.create({ data }).catch(e => logger.error("DB Log Error:", { err: e.message }));
         } else {

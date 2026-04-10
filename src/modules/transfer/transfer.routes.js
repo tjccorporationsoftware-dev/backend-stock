@@ -51,11 +51,41 @@ const receiveSchema = z.object({
     query: z.object({}).passthrough()
 });
 
-router.get('/', requireAuth, requirePermissions(['INVENTORY_READ']), transferController.listPendingTransfers);
+router.get(
+    '/', 
+    requireAuth, 
+    requirePermissions(['INVENTORY_READ']), 
+    transferController.listPendingTransfers
+);
 
-router.get('/history', requireAuth, requirePermissions(['INVENTORY_READ']), transferController.getTransferHistory);
-router.get('/:id', requireAuth, requirePermissions(['INVENTORY_READ']), transferController.getTransferById);
-router.post('/ship', requireAuth, requirePermissions(['TRANSFER_CREATE']), validate(shipSchema), transferController.shipTransfer);
-router.put('/:id/receive', requireAuth, requirePermissions(['TRANSFER_CREATE']), validate(receiveSchema), transferController.receiveTransfer);
+router.get(
+    '/history', 
+    requireAuth, 
+    requirePermissions(['INVENTORY_READ']), 
+    transferController.getTransferHistory
+);
 
+router.get(
+    '/:id', 
+    requireAuth, 
+    requirePermissions(['INVENTORY_READ']), 
+    validate(z.object({ params: z.object({ id: z.string().uuid("รหัสใบโอนย้ายไม่ถูกต้อง") }) })),
+    transferController.getTransferById
+);
+
+router.post(
+    '/ship', 
+    requireAuth, 
+    requirePermissions(['TRANSFER_MANAGE']), 
+    validate(shipSchema), 
+    transferController.shipTransfer
+);
+
+router.put(
+    '/:id/receive', 
+    requireAuth, 
+    requirePermissions(['TRANSFER_MANAGE']), 
+    validate(receiveSchema), 
+    transferController.receiveTransfer
+);
 module.exports = { transferRoutes: router };

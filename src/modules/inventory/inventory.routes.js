@@ -67,7 +67,11 @@ const adjustmentSchema = z.object({
 const goodsReceiptSchema = z.object({
     body: z.object({
         receiptNo: z.string().min(1, "กรุณาระบุเลขที่ใบรับสินค้า"),
-        purchaseOrderId: z.string().trim().min(1, "กรุณาเลือกใบสั่งซื้อ"),
+        purchaseOrderId: z.string().trim()
+          .optional()
+          .nullable()
+          .or(z.literal(""))
+          .transform(val => val === "" ? null : val),
         remarks: z.string().optional().nullable(),
         items: z.array(z.object({
             productId: z.string().trim().min(1, "รหัสสินค้าไม่ถูกต้อง"),
@@ -101,18 +105,45 @@ const agedStockSchema = z.object({
 // ==========================================
 // ROUTES (กำหนดสิทธิ์แบบ Least Privilege)
 // ==========================================
+// --- หมวดสินค้าคงคลัง (Inventory) ---
+router.get('/balances', requireAuth, requirePermissions(['INVENTORY_READ']), validate(getInventorySchema), inventoryController.getStockBalances);
+router.get('/movements', requireAuth, requirePermissions(['INVENTORY_READ']), validate(getMovementSchema), inventoryController.getStockMovements);
 
-router.get('/balances', requireAuth, requirePermissions(['INVENTORY_VIEW']), validate(getInventorySchema), inventoryController.getStockBalances);
-router.get('/movements', requireAuth, requirePermissions(['INVENTORY_VIEW']), validate(getMovementSchema), inventoryController.getStockMovements);
+router.get(
+    '/low-stock-alerts',
+    requireAuth,
+    requirePermissions(['INVENTORY_READ']),
+    inventoryController.getLowStockAlerts
+);
 
-router.post('/transfer', requireAuth, requirePermissions(['INVENTORY_TRANSFER']), validate(transferSchema), inventoryController.transferStock);
-router.get('/transfer', requireAuth, requirePermissions(['INVENTORY_VIEW']), inventoryController.listTransferOrders);
-router.get('/transfer/:id', requireAuth, requirePermissions(['INVENTORY_VIEW']), validate(z.object({ params: z.object({ id: z.string().uuid() }) })), inventoryController.getTransferDetail);
+router.get(
+    '/aged-stock',
+    requireAuth,
+    requirePermissions(['INVENTORY_READ']),
+    validate(agedStockSchema),
+    inventoryController.getAgedStock
+);
 
-router.post('/adjust', requireAuth, requirePermissions(['INVENTORY_ADJUST']), validate(adjustmentSchema), inventoryController.adjustStock);
-router.get('/adjust', requireAuth, requirePermissions(['INVENTORY_VIEW']), inventoryController.getAdjustmentHistory);
-router.get('/adjust/:id', requireAuth, requirePermissions(['INVENTORY_VIEW']), inventoryController.getAdjustmentDetail);
+// --- หมวด Dashboard ---
+router.get(
+    '/dashboard/movements-summary',
+    requireAuth,
+    requirePermissions(['DASHBOARD_VIEW']),
+    inventoryController.getDashboardMovementSummary
+);
 
+// --- หมวดโอนย้าย (Transfer) ---
+router.post('/transfer', requireAuth, requirePermissions(['TRANSFER_MANAGE']), validate(transferSchema), inventoryController.transferStock);
+router.get('/transfer', requireAuth, requirePermissions(['INVENTORY_READ']), inventoryController.listTransferOrders);
+router.get('/transfer/:id', requireAuth, requirePermissions(['INVENTORY_READ']), validate(z.object({ params: z.object({ id: z.string().uuid() }) })), inventoryController.getTransferDetail);
+
+// --- หมวดปรับปรุงยอด (Adjustment) ---
+router.post('/adjust', requireAuth, requirePermissions(['ADJUSTMENT_MANAGE']), validate(adjustmentSchema), inventoryController.adjustStock);
+router.get('/adjust', requireAuth, requirePermissions(['INVENTORY_READ']), inventoryController.getAdjustmentHistory);
+// 💡 เพิ่ม validate ตรวจสอบ UUID ป้องกัน Server พัง
+router.get('/adjust/:id', requireAuth, requirePermissions(['INVENTORY_READ']), validate(z.object({ params: z.object({ id: z.string().uuid() }) })), inventoryController.getAdjustmentDetail);
+
+// --- หมวดรับสินค้าเข้า (Inbound / Goods Receipt) ---
 router.post(
     '/receipt',
     requireAuth,
@@ -124,24 +155,34 @@ router.post(
 router.get(
     '/receipt',
     requireAuth,
-    requirePermissions(['INVENTORY_VIEW']),
+    requirePermissions(['INBOUND_READ']), // เปลี่ยนเป็น INBOUND_READ
     inventoryController.getReceiptHistory
 );
-router.get('/receipt/document/:filename', requireAuth, inventoryController.viewGRDocument);
 
-router.get('/receipt/:id', requireAuth, requirePermissions(['INVENTORY_VIEW']), validate(z.object({ params: z.object({ id: z.string().uuid() }) })), inventoryController.getReceiptDetail);
+// 💡 เพิ่มตรวจสอบสิทธิ์ก่อนดูเอกสาร
+router.get('/receipt/document/:filename', requireAuth, requirePermissions(['INBOUND_READ']), inventoryController.viewGRDocument);
 
+router.get('/receipt/:id', requireAuth, requirePermissions(['INBOUND_READ']), validate(z.object({ params: z.object({ id: z.string().uuid() }) })), inventoryController.getReceiptDetail);
+
+// --- หมวดใบสั่งซื้อ (Purchase Order) ---
 router.get(
     '/pos/pending',
     requireAuth,
-    requirePermissions(['INBOUND_CREATE']),
+    requirePermissions(['INBOUND_READ']), // คนรับของควรดู PO ที่รอรับได้
     inventoryController.getPendingPOs
+);
+
+router.get(
+    '/pos',
+    requireAuth,
+    requirePermissions(['PO_MANAGE']), // เปลี่ยนเป็น PO_MANAGE
+    inventoryController.getAllPOs
 );
 
 router.get(
     '/pos/:id',
     requireAuth,
-    requirePermissions(['INBOUND_CREATE']),
+    requirePermissions(['PO_MANAGE']), 
     validate(z.object({ params: z.object({ id: z.string().uuid() }) })),
     inventoryController.getPODetail
 );
@@ -149,44 +190,16 @@ router.get(
 router.get(
     '/pos/:id/pdf',
     requireAuth,
+    requirePermissions(['PO_MANAGE', 'INBOUND_READ'], { mode: 'any' }),
+    validate(z.object({ params: z.object({ id: z.string().uuid() }) })),
     inventoryController.generatePOPdf
 );
 
 router.post(
     '/pos',
     requireAuth,
-    requirePermissions(['PURCHASE_CREATE']),
+    requirePermissions(['PO_MANAGE']),
     validate(createPOSchema),
     inventoryController.createPurchaseOrder
 );
-
-router.get(
-    '/low-stock-alerts',
-    requireAuth,
-    requirePermissions(['INVENTORY_READ']),
-    inventoryController.getLowStockAlerts
-);
-
-router.get(
-    '/pos',
-    requireAuth,
-    requirePermissions(['PURCHASE_CREATE']),
-    inventoryController.getAllPOs
-);
-router.get(
-    '/dashboard/movements-summary',
-    requireAuth,
-    requirePermissions(['INVENTORY_VIEW']),
-    inventoryController.getDashboardMovementSummary
-);
-
-// 2. นำ Route ไปวางไว้ในกลุ่ม ROUTES (แนะนำให้วางก่อน route ที่เป็น /:id)
-router.get(
-    '/aged-stock',
-    requireAuth,
-    requirePermissions(['INVENTORY_VIEW']),
-    validate(agedStockSchema),
-    inventoryController.getAgedStock
-);
-
 module.exports = { inventoryRoutes: router };

@@ -26,10 +26,7 @@ const createGoodsReceiptSchema = z.object({
     params: z.object({}).passthrough(),
 });
 
-/** * @route   POST /api/inbound/receipts
- * @desc    สร้างใบรับสินค้าเข้า พร้อมอัปเดต Stock Balance และ Movement
- * @access  Private (Requires INBOUND_CREATE permission)
- */
+
 router.post(
     '/receipts',
     requireAuth,                               // 1. ตรวจสอบ JWT Token

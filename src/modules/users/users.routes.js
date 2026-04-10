@@ -38,7 +38,12 @@ const createSchema = z.object({
   }).strict()
 });
 
-const ADMIN_KEY = 'AUDIT_LOG_VIEW';
+const ADMIN_KEY = 'USER_MANAGE';
+
+// --- Security Matrix ---
+router.get("/roles/list", requireAuth, requirePermissions([ADMIN_KEY]), c.listRoles);
+router.get("/roles/:roleId/permissions", requireAuth, requirePermissions([ADMIN_KEY]), c.getRolePermissions);
+router.post("/roles/:roleId/permissions", requireAuth, requirePermissions([ADMIN_KEY]), c.updateRolePermissions);
 
 // --- User Management ---
 router.get("/", requireAuth, requirePermissions([ADMIN_KEY]), c.listUsers);
@@ -47,10 +52,5 @@ router.post("/", requireAuth, requirePermissions([ADMIN_KEY]), validate(createSc
 router.patch("/:id", requireAuth, requirePermissions([ADMIN_KEY]), validate(updateSchema), c.updateUser);
 router.delete("/:id", requireAuth, requirePermissions([ADMIN_KEY]), c.deleteUser);
 router.post("/:id/roles", requireAuth, requirePermissions([ADMIN_KEY]), c.setRoles);
-
-// --- Security Matrix ---
-router.get("/roles/list", requireAuth, requirePermissions([ADMIN_KEY]), c.listRoles);
-router.get("/roles/:roleId/permissions", requireAuth, requirePermissions([ADMIN_KEY]), c.getRolePermissions);
-router.post("/roles/:roleId/permissions", requireAuth, requirePermissions([ADMIN_KEY]), c.updateRolePermissions);
 
 module.exports = { userRoutes: router };

@@ -64,6 +64,7 @@ const updateRequisitionStatusSchema = z.object({
 // 🚀 ROUTES (OUTBOUND & REQUISITION)
 // ==========================================
 
+
 // --- Delivery Order Section ---
 router.post(
     '/delivery-orders',
@@ -73,8 +74,21 @@ router.post(
     outboundController.createDeliveryOrder
 );
 
-router.get('/delivery-orders', requireAuth, requirePermissions(['OUTBOUND_READ']), outboundController.listDeliveryOrders);
-router.get('/delivery-orders/:id', requireAuth, requirePermissions(['OUTBOUND_READ']), outboundController.getDeliveryOrderDetail);
+router.get(
+    '/delivery-orders', 
+    requireAuth, 
+    requirePermissions(['OUTBOUND_READ']), 
+    outboundController.listDeliveryOrders
+);
+
+// 💡 เพิ่ม validate ตรวจสอบ UUID ป้องกัน Server พังจากการรับค่าผิดรูปแบบ
+router.get(
+    '/delivery-orders/:id', 
+    requireAuth, 
+    requirePermissions(['OUTBOUND_READ']), 
+    validate(z.object({ params: z.object({ id: z.string().uuid("รูปแบบ ID ไม่ถูกต้อง") }) })),
+    outboundController.getDeliveryOrderDetail
+);
 
 // --- Stock Requisition Section ---
 // 💡 เปลี่ยนจาก inventoryController เป็น outboundController ตามไฟล์ที่เราเพิ่งย้ายไป
@@ -85,11 +99,15 @@ router.post(
     validate(createRequisitionSchema),
     outboundController.createStockRequisition
 );
+
+// 💡 เพิ่มการดักสิทธิ์ ป้องกันคนไม่มีสิทธิ์แอบดึงข้อมูลยอดเบิกของแต่ละแผนก
 router.get(
     '/requisitions/department-consumption',
     requireAuth,
+    requirePermissions(['REQUISITION_READ']), 
     outboundController.getDepartmentConsumption
 );
+
 router.get(
     '/requisitions/pending',
     requireAuth,
@@ -105,9 +123,11 @@ router.put(
     outboundController.updateRequisitionStatus
 );
 
+// 💡 เพิ่มสิทธิ์ REQUISITION_READ ที่ของเดิมยังไม่ได้ใส่ไว้
 router.get(
     '/requisitions',
     requireAuth,
+    requirePermissions(['REQUISITION_READ']),
     outboundController.listRequisitions
 );
 

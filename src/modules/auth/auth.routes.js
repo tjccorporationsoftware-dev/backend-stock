@@ -38,16 +38,10 @@ const upload = multer({
   }
 });
 
-// --- 🛣️ Routes ---
-
 const loginSchema = z.object({
   body: z.object({
     username: z.string().trim().min(3, "กรุณากรอก Username").max(100),
-    password: z.string().trim()
-      .min(8, "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร")
-      .regex(/[A-Z]/, "รหัสผ่านต้องมีตัวอักษรพิมพ์ใหญ่อย่างน้อย 1 ตัว")
-      .regex(/[a-z]/, "รหัสผ่านต้องมีตัวอักษรพิมพ์เล็กอย่างน้อย 1 ตัว")
-      .regex(/[0-9]/, "รหัสผ่านต้องมีตัวเลขอย่างน้อย 1 ตัว")
+    password: z.string().min(1, "กรุณากรอกรหัสผ่าน")
   }).strict(),
   query: z.object({}).passthrough(),
   params: z.object({}).passthrough(),
