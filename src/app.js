@@ -7,6 +7,7 @@ const cookieParser = require("cookie-parser");
 const hpp = require("hpp");
 const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
 const path = require("path");
+const csrf = require("lusca").csrf;
 
 const { requestIdMiddleware } = require("./utils/requestId");
 const { errorHandler } = require("./middlewares/errorHandler");
@@ -41,6 +42,7 @@ app.use(helmet({
 app.use(hpp());
 app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
+app.use(csrf());
 
 const allowlist = (process.env.CORS_ALLOWLIST || "").split(",").filter(Boolean);
 
